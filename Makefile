@@ -13,6 +13,12 @@ train: src/train.c
 test: src/test.c
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) -Iinc
 
+test_hmm: src/test_hmm.c
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) -Iinc
+
+run_train: train
+	./train 100 model_init.txt data/train_seq_01.txt model_01.txt
+
 clean:
 	rm -f $(TARGET)
 
