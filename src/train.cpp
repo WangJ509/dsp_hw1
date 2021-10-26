@@ -3,28 +3,37 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vector>
+
+#include "utils.cpp"
+using namespace std;
+
 #ifndef MAX_TRAIN_SEQ
 #define MAX_TRAIN_SEQ 10000
 #endif
 
-int seq_to_observ(char input, int observ_num) {
-    int ret = input - 'A';
-    if (ret < 0 || ret >= observ_num) {
-        return -1;
-    }
-
-    return ret;
-}
-
 int train(HMM *model, char seq[]) {
-    int n = strlen(seq);
-    int observ[n];
+    int T = strlen(seq);
+    int N = model->state_num;
+    int observ[T];
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < T; i++) {
         observ[i] = seq_to_observ(seq[i], model->observ_num);
+        if (observ[i] == -1) {
+            puts("invalid training sequence!");
+            return -1;
+        }
     }
 
-    return 0;
+    double **alpha = calculate_alpha(*model, observ, T, N);
+    for (int i = 0; i < T; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%lf ", alpha[i][j]);
+        }
+        puts("");
+    }
+
+    return -1;
 }
 
 int main(int argc, char **argv) {
