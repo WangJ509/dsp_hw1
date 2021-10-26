@@ -6,6 +6,8 @@ using namespace std;
 
 typedef vector<vector<double> > matrix;
 
+void print_number(int n) { printf("%d\n", n); }
+
 int seq_to_observ(char input, int observ_num) {
     int ret = input - 'A';
     if (ret < 0 || ret >= observ_num) {
@@ -41,9 +43,57 @@ matrix calculate_alpha(HMM model, int observ[], int T, int N) {
 
     for (int i = 0; i < N; i++) {
         int o1 = observ[0];
-        alpha[1][i] = model.initial[i] * model.observation[o1][i];
-        printf("%lf ", alpha[1][i]);
+        alpha[0][i] = model.initial[i] * model.observation[o1][i];
+    }
+
+    for (int t = 1; t < T; t++) {
+        for (int j = 0; j < N; j++) {
+            double sum = 0;
+            for (int i = 0; i < N; i++) {
+                sum += alpha[t - 1][i] * model.transition[i][j];
+            }
+            alpha[t][j] = sum * model.observation[t][j];
+        }
     }
 
     return alpha;
+}
+
+matrix calculate_beta(HMM model, int observ[], int T, int N) {
+    matrix beta = new_matrix(T, N);
+
+    for (int i = 0; i < N; i++) {
+        beta[T - 1][i] = 1;
+    }
+
+    for (int t = T - 2; t >= 0; t--) {
+        for (int i = 0; i < N; i++) {
+            double sum = 0;
+            for (int j = 0; j < N; j++) {
+                double a = model.transition[i][j];
+                double b = model.observation[t + 1][j];
+                sum += a * b * beta[t + 1][j];
+            }
+            beta[t][i] = sum;
+        }
+    }
+
+    return beta;
+}
+
+matrix calculate_gamma(HMM model, matrix alpha, matrix beta, int observ[],
+                       int T, int N) {
+    matrix gamma = new_matrix(T, N);
+
+    for (int t = 0; t < T; t++) {
+        for (int i = 0; i < N; i++) {
+            double denominator = 0;
+            for (int j = 0; j < N; j++) {
+                denominator += alpha[t][j] * beta[t][j];
+            }
+            gamma[t][i] = (alpha[t][i] * beta[t][i]) / denominator;
+        }
+    }
+
+    return gamma;
 }
