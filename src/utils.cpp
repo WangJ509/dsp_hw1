@@ -5,6 +5,7 @@
 using namespace std;
 
 typedef vector<vector<double> > matrix;
+typedef vector<vector<vector<double> > > tensor;
 
 void print_number(int n) { printf("%d\n", n); }
 
@@ -26,6 +27,15 @@ matrix new_matrix(int T, int N) {
     return m;
 }
 
+tensor new_tensor(int T, int N) {
+    tensor t(T);
+    for (int i = 0; i < T; i++) {
+        t[i] = new_matrix(N, N);
+    }
+
+    return t;
+}
+
 void dump_matrix(matrix m) {
     for (int i = 0; i < m.size(); i++) {
         int n = m[i].size();
@@ -33,6 +43,15 @@ void dump_matrix(matrix m) {
             printf("%lf ", m[i][j]);
         }
         puts("");
+    }
+
+    return;
+}
+
+void dump_tensor(tensor input) {
+    for (int t = 0; t < input.size(); t++) {
+        printf("t = %d\n", t);
+        dump_matrix(input[t]);
     }
 
     return;
@@ -96,4 +115,35 @@ matrix calculate_gamma(HMM model, matrix alpha, matrix beta, int observ[],
     }
 
     return gamma;
+}
+
+double _epsilon(HMM model, matrix alpha, matrix beta, int ot1, int N, int t,
+                int i_in, int j_in) {
+    double denominator = 0;
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            denominator += alpha[t][i] * model.transition[i][j] *
+                           model.observation[ot1][j] * beta[t + 1][j];
+        }
+    }
+
+    double numerator = alpha[t][i_in] * model.transition[i_in][j_in] *
+                       model.observation[ot1][j_in] * beta[t + 1][j_in];
+
+    return numerator / denominator;
+}
+
+tensor calculate_epsilon(HMM model, matrix alpha, matrix beta, int observ[],
+                        int T, int N) {
+    tensor epsilon = new_tensor(T, N);
+
+    for (int t = 0; t < T - 1; t++) {
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                epsilon[t][i][j] = _epsilon(model, alpha, beta, observ[t+1], N, t, i, j);
+            }
+        }
+    }
+
+    return epsilon;
 }

@@ -39,8 +39,20 @@ void test_gamma() {
     dump_matrix(m);
 }
 
+void test_epsilon() {
+    HMM model;
+    loadHMM(&model, "model_init.txt");
+
+    int observ[] = {1, 2, 3, 4, 5, 6};
+    matrix alpha = calculate_alpha(model, observ, 6, 6);
+    matrix beta = calculate_beta(model, observ, 6, 6);
+    tensor t = calculate_epsilon(model, alpha, beta, observ, 6, 6);
+    dump_tensor(t);
+}
+
 int main(int argc, char const *argv[]) {
     // test_matrix(6, 6);
-    test_gamma();
+    // test_gamma();
+    test_epsilon();
     return 0;
 }
