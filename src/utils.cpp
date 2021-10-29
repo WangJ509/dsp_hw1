@@ -1,18 +1,45 @@
 #include <hmm.h>
 #include <stdio.h>
+#include <stdlib.h>
 
+#include <iostream>
+#include <stdexcept>
+#include <string>
 #include <vector>
 using namespace std;
 
+#define MAX_PANIC_MESSAGE 100
+
+typedef vector<int> observ;
 typedef vector<vector<double> > matrix;
 typedef vector<vector<vector<double> > > tensor;
 
+void panic(string message) {
+    cout << message << endl;
+    exit(1);
+}
+
 void print_number(int n) { printf("%d\n", n); }
 
-int seq_to_observ(char input, int observ_num) {
-    int ret = input - 'A';
-    if (ret < 0 || ret >= observ_num) {
-        return -1;
+observ seq_to_observ(string input, int observ_num) {
+    observ observ;
+
+    for (char c : input) {
+        int o = c - 'A';
+        if (o < 0 || o >= observ_num) {
+            panic("sequence out of range");
+        }
+        observ.push_back(o);
+    }
+
+    return observ;
+}
+
+vector<observ> seqs_to_observs(vector<string> seqs, int observ_num) {
+    vector<observ> ret(seqs.size());
+
+    for (string s : seqs) {
+        ret.push_back(seq_to_observ(s, observ_num));
     }
 
     return ret;
@@ -36,16 +63,21 @@ tensor new_tensor(int T, int N) {
     return t;
 }
 
+void dump_observ(observ o) {
+    for (int i = 0; i < o.size(); i++) {
+        printf("%d ", o[i]);
+    }
+    puts("");
+}
+
 void dump_matrix(matrix m) {
     for (int i = 0; i < m.size(); i++) {
         int n = m[i].size();
         for (int j = 0; j < n; j++) {
-            printf("%lf ", m[i][j]);
+            printf("%e ", m[i][j]);
         }
         puts("");
     }
-
-    return;
 }
 
 void dump_tensor(tensor input) {
@@ -53,8 +85,6 @@ void dump_tensor(tensor input) {
         printf("t = %d\n", t);
         dump_matrix(input[t]);
     }
-
-    return;
 }
 
 matrix calculate_alpha(HMM model, int observ[], int T, int N) {
@@ -110,6 +140,11 @@ matrix calculate_gamma(HMM model, matrix alpha, matrix beta, int observ[],
             for (int j = 0; j < N; j++) {
                 denominator += alpha[t][j] * beta[t][j];
             }
+            // if (denominator == 0) {
+            //     char message[MAX_PANIC_MESSAGE];
+            //     sprintf(message, "gamma divide by zero t:%d i:%d", t, i);
+            //     panic(message);
+            // }
             gamma[t][i] = (alpha[t][i] * beta[t][i]) / denominator;
         }
     }
@@ -127,6 +162,13 @@ double _epsilon(HMM model, matrix alpha, matrix beta, int ot1, int N, int t,
         }
     }
 
+    // if (denominator == 0) {
+    //     char message[MAX_PANIC_MESSAGE];
+    //     sprintf(message, "epsilon divide by zero t:%d i:%d j:%d", t, i_in,
+    //             j_in);
+    //     panic(message);
+    // }
+
     double numerator = alpha[t][i_in] * model.transition[i_in][j_in] *
                        model.observation[ot1][j_in] * beta[t + 1][j_in];
 
@@ -134,13 +176,14 @@ double _epsilon(HMM model, matrix alpha, matrix beta, int ot1, int N, int t,
 }
 
 tensor calculate_epsilon(HMM model, matrix alpha, matrix beta, int observ[],
-                        int T, int N) {
+                         int T, int N) {
     tensor epsilon = new_tensor(T, N);
 
     for (int t = 0; t < T - 1; t++) {
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                epsilon[t][i][j] = _epsilon(model, alpha, beta, observ[t+1], N, t, i, j);
+                epsilon[t][i][j] =
+                    _epsilon(model, alpha, beta, observ[t + 1], N, t, i, j);
             }
         }
     }

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cmath>
 #include <vector>
 
 #include "utils.cpp"
@@ -12,7 +13,25 @@ using namespace std;
 #define MAX_TRAIN_SEQ 10000
 #endif
 
-int train(HMM *model, char seq[]) {
+void update_transition(HMM *model, tensor epsilon, matrix gamma, int T, int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            double numerator = 0;
+            double denominator = 0;
+            for (int t = 0; t < T; t++) {
+                double e = epsilon[t][i][j];
+                double g = gamma[t][i];
+                if (isnan(e) || isnan(g)) continue;
+                numerator += e;
+                denominator += g;
+            }
+            if (numerator == 0 || denominator == 0) continue;
+            model->transition[i][j] = numerator / denominator;
+        }
+    }
+}
+
+int train(HMM *model, char *seq, int M) {
     int T = strlen(seq);
     int N = model->state_num;
     int observ[T];
@@ -25,13 +44,12 @@ int train(HMM *model, char seq[]) {
         }
     }
 
-    double **alpha = calculate_alpha(*model, observ, T, N);
-    for (int i = 0; i < T; i++) {
-        for (int j = 0; j < N; j++) {
-            printf("%lf ", alpha[i][j]);
-        }
-        puts("");
-    }
+    matrix alpha = calculate_alpha(*model, observ, T, N);
+    matrix beta = calculate_beta(*model, observ, T, N);
+    matrix gamma = calculate_gamma(*model, alpha, beta, observ, T, N);
+    tensor epsilon = calculate_epsilon(*model, alpha, beta, observ, T, N);
+    update_transition(model, epsilon, gamma, T, N);
+    dumpHMM(stdout, model);
 
     return -1;
 }
@@ -56,11 +74,10 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < iter; i++) {
-        for (int j = 0; j < num_train_seq; j++) {
-            int err = train(&model, train_seq[j]);
-            if (err != 0) {
-                printf("error at iter: %d, seq: %d\n", i, j);
-            }
+        int err = train(&model, train_seq, num_train_seq);
+        if (err != 0) {
+            printf("error at iter: %d\n", i);
+            return 0;
         }
     }
 }
