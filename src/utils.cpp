@@ -87,28 +87,31 @@ void dump_tensor(tensor input) {
     }
 }
 
-matrix calculate_alpha(HMM model, int observ[], int T, int N) {
+matrix calculate_alpha(HMM model, observ o) {
+    int T = o.size(), N = model.state_num;
     matrix alpha = new_matrix(T, N);
 
     for (int i = 0; i < N; i++) {
-        int o1 = observ[0];
+        int o1 = o[0];
         alpha[0][i] = model.initial[i] * model.observation[o1][i];
     }
 
     for (int t = 1; t < T; t++) {
+        int ot = o[t];
         for (int j = 0; j < N; j++) {
             double sum = 0;
             for (int i = 0; i < N; i++) {
                 sum += alpha[t - 1][i] * model.transition[i][j];
             }
-            alpha[t][j] = sum * model.observation[t][j];
+            alpha[t][j] = sum * model.observation[ot][j];
         }
     }
 
     return alpha;
 }
 
-matrix calculate_beta(HMM model, int observ[], int T, int N) {
+matrix calculate_beta(HMM model, observ o) {
+    int T = o.size(), N = model.state_num;
     matrix beta = new_matrix(T, N);
 
     for (int i = 0; i < N; i++) {
@@ -116,6 +119,7 @@ matrix calculate_beta(HMM model, int observ[], int T, int N) {
     }
 
     for (int t = T - 2; t >= 0; t--) {
+        int ot1 = o[t - 1];
         for (int i = 0; i < N; i++) {
             double sum = 0;
             for (int j = 0; j < N; j++) {
@@ -130,8 +134,8 @@ matrix calculate_beta(HMM model, int observ[], int T, int N) {
     return beta;
 }
 
-matrix calculate_gamma(HMM model, matrix alpha, matrix beta, int observ[],
-                       int T, int N) {
+matrix calculate_gamma(HMM model, matrix alpha, matrix beta, observ o) {
+    int T = o.size(), N = model.state_num;
     matrix gamma = new_matrix(T, N);
 
     for (int t = 0; t < T; t++) {
@@ -140,11 +144,11 @@ matrix calculate_gamma(HMM model, matrix alpha, matrix beta, int observ[],
             for (int j = 0; j < N; j++) {
                 denominator += alpha[t][j] * beta[t][j];
             }
-            // if (denominator == 0) {
-            //     char message[MAX_PANIC_MESSAGE];
-            //     sprintf(message, "gamma divide by zero t:%d i:%d", t, i);
-            //     panic(message);
-            // }
+            if (denominator == 0) {
+                char message[MAX_PANIC_MESSAGE];
+                sprintf(message, "gamma divide by zero t:%d i:%d", t, i);
+                panic(message);
+            }
             gamma[t][i] = (alpha[t][i] * beta[t][i]) / denominator;
         }
     }
@@ -162,12 +166,12 @@ double _epsilon(HMM model, matrix alpha, matrix beta, int ot1, int N, int t,
         }
     }
 
-    // if (denominator == 0) {
-    //     char message[MAX_PANIC_MESSAGE];
-    //     sprintf(message, "epsilon divide by zero t:%d i:%d j:%d", t, i_in,
-    //             j_in);
-    //     panic(message);
-    // }
+    if (denominator == 0) {
+        char message[MAX_PANIC_MESSAGE];
+        sprintf(message, "epsilon divide by zero t:%d i:%d j:%d", t, i_in,
+                j_in);
+        panic(message);
+    }
 
     double numerator = alpha[t][i_in] * model.transition[i_in][j_in] *
                        model.observation[ot1][j_in] * beta[t + 1][j_in];
@@ -175,15 +179,15 @@ double _epsilon(HMM model, matrix alpha, matrix beta, int ot1, int N, int t,
     return numerator / denominator;
 }
 
-tensor calculate_epsilon(HMM model, matrix alpha, matrix beta, int observ[],
-                         int T, int N) {
+tensor calculate_epsilon(HMM model, matrix alpha, matrix beta, observ o) {
+    int T = o.size(), N = model.state_num;
     tensor epsilon = new_tensor(T, N);
 
     for (int t = 0; t < T - 1; t++) {
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
                 epsilon[t][i][j] =
-                    _epsilon(model, alpha, beta, observ[t + 1], N, t, i, j);
+                    _epsilon(model, alpha, beta, o[t + 1], N, t, i, j);
             }
         }
     }

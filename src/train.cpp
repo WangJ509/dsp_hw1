@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include <cmath>
+#include <fstream>
+#include <iostream>
 #include <vector>
 
 #include "utils.cpp"
@@ -63,14 +65,16 @@ int main(int argc, char **argv) {
     HMM model;
     loadHMM(&model, model_init_path);
 
-    char train_seq[MAX_TRAIN_SEQ][MAX_LINE];
-    int num_train_seq = 0;
-    FILE *fp = open_or_die(seq_path, "r");
+    vector<string> train_seqs;
+    string line;
+    ifstream infile(seq_path);
+    while (getline(infile, line)) {
+        train_seqs.push_back(line);
+    }
 
-    for (int i = 0; fgets(train_seq[i], MAX_LINE, fp) != NULL; i++) {
-        // trim the trailing \n
-        train_seq[i][strlen(train_seq[i]) - 1] = '\0';
-        num_train_seq++;
+    vector<observ> observs = seqs_to_observs(train_seqs, model.observ_num);
+    for (observ o : observs) {
+        dump_observ(o);
     }
 
     for (int i = 0; i < iter; i++) {

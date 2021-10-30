@@ -8,56 +8,36 @@
 #include "utils.cpp"
 using namespace std;
 
+observ o = {0, 1, 2, 3, 4, 5};
+HMM model;
+
 void test_matrix(int T, int N) {
     matrix m = new_matrix(T, N);
     dump_matrix(m);
 }
 
 void test_alpha() {
-    HMM model;
-    loadHMM(&model, "model_init.txt");
-
     int observ[] = {0, 1, 2, 3, 4, 5};
-    matrix m = calculate_alpha(model, observ, 6, 6);
+    matrix m = calculate_alpha(model, o);
     dump_matrix(m);
 }
 
 void test_beta() {
-    HMM model;
-    loadHMM(&model, "model_init.txt");
-
-    int observ[] = {0, 1, 2, 3, 4, 5};
-    matrix m = calculate_beta(model, observ, 6, 6);
+    matrix m = calculate_beta(model, o);
     dump_matrix(m);
 }
 
 void test_gamma() {
-    HMM model;
-    loadHMM(&model, "model_init.txt");
-
-    int observ[] = {0, 1, 2, 3, 4, 5};
-    matrix alpha = calculate_alpha(model, observ, 6, 6);
-    matrix beta = calculate_beta(model, observ, 6, 6);
-    matrix gamma = calculate_gamma(model, alpha, beta, observ, 6, 6);
+    matrix alpha = calculate_alpha(model, o);
+    matrix beta = calculate_beta(model, o);
+    matrix gamma = calculate_gamma(model, alpha, beta, o);
     dump_matrix(gamma);
-
-    for (int t = 0; t < 6; t++) {
-        double sum = 0;
-        for (int i = 0; i < 6; i++) {
-            sum += gamma[t][i];
-        }
-        printf("%e\n", sum);
-    }
 }
 
 void test_epsilon() {
-    HMM model;
-    loadHMM(&model, "model_init.txt");
-
-    int observ[] = {0, 1, 2, 3, 4, 5};
-    matrix alpha = calculate_alpha(model, observ, 6, 6);
-    matrix beta = calculate_beta(model, observ, 6, 6);
-    tensor t = calculate_epsilon(model, alpha, beta, observ, 6, 6);
+    matrix alpha = calculate_alpha(model, o);
+    matrix beta = calculate_beta(model, o);
+    tensor t = calculate_epsilon(model, alpha, beta, o);
     dump_tensor(t);
 }
 
@@ -72,16 +52,19 @@ void test_observ() {
         train_seqs.push_back(line);
     }
 
-    for (string s : train_seqs) {
-        cout << s << endl;
+    vector<observ> observs = seqs_to_observs(train_seqs, 6);
+    for (observ o : observs) {
+        dump_observ(o);
     }
 }
 
 int main(int argc, char const *argv[]) {
+    loadHMM(&model, "model_init.txt");
     // test_matrix(6, 6);
     // test_alpha();
     // test_beta();
     // test_gamma();
-    test_observ();
+    test_epsilon();
+    // test_observ();
     return 0;
 }
