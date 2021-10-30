@@ -60,11 +60,21 @@ void test_observ() {
 
 int main(int argc, char const *argv[]) {
     loadHMM(&model, "model_init.txt");
+    ifstream fin("data/train_seq_01.txt");
+    string line;
+    vector<string> seqs;
+    getline(fin, line);
+    seqs.push_back(line);
+    getline(fin, line);
+    seqs.push_back(line);
+    vector<observ> os = seqs_to_observs(seqs, model.observ_num);
+    o = os[0];
+
     // test_matrix(6, 6);
     // test_alpha();
-    // test_beta();
+    test_beta();
     // test_gamma();
-    test_epsilon();
+    // test_epsilon();
     // test_observ();
     return 0;
 }

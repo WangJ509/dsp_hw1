@@ -17,7 +17,7 @@ unitest: src/unitest.cpp src/utils.cpp
 	$(CC) -o unitest src/unitest.cpp $(CFLAGS) $(LDFLAGS) -Iinc
 
 run_train: train
-	./train 100 model_init.txt data/train_seq_01.txt model_01.txt
+	./train 1 model_init.txt data/train_seq_01.txt model_01.txt
 
 run_unitest: unitest
 	./unitest

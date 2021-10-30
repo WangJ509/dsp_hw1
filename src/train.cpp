@@ -1,4 +1,5 @@
 #include <hmm.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,48 +16,81 @@ using namespace std;
 #define MAX_TRAIN_SEQ 10000
 #endif
 
-void update_transition(HMM *model, tensor epsilon, matrix gamma, int T, int N) {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            double numerator = 0;
-            double denominator = 0;
-            for (int t = 0; t < T; t++) {
-                double e = epsilon[t][i][j];
-                double g = gamma[t][i];
-                if (isnan(e) || isnan(g)) continue;
-                numerator += e;
-                denominator += g;
-            }
-            if (numerator == 0 || denominator == 0) continue;
-            model->transition[i][j] = numerator / denominator;
+void _update_transition(HMM *model, vector<tensor> es, vector<matrix> gs,
+                        vector<observ> os, int i, int j) {
+    double numerator = 0;
+    double denominator = 0;
+    for (int n = 0; n < os.size(); n++) {
+        for (int t = 0; t < os[n].size() - 1; t++) {
+            numerator += es[n][t][i][j];
+            denominator += gs[n][t][i];
         }
     }
+
+    model->transition[i][j] = numerator / denominator;
 }
 
-int train(HMM *model, char *seq, int M) {
-    int T = strlen(seq);
-    int N = model->state_num;
-    int observ[T];
-
-    for (int i = 0; i < T; i++) {
-        observ[i] = seq_to_observ(seq[i], model->observ_num);
-        if (observ[i] == -1) {
-            puts("invalid training sequence!");
-            return -1;
+void _update_observation(HMM *model, vector<matrix> gs, vector<observ> os,
+                         int i, int k) {
+    double numerator = 0;
+    double denominator = 0;
+    for (int n = 0; n < os.size(); n++) {
+        for (int t = 0; t < os[n].size(); t++) {
+            if (os[n][t] == k) {
+                numerator += gs[n][t][i];
+            }
+            denominator += gs[n][t][i];
         }
     }
 
-    matrix alpha = calculate_alpha(*model, observ, T, N);
-    matrix beta = calculate_beta(*model, observ, T, N);
-    matrix gamma = calculate_gamma(*model, alpha, beta, observ, T, N);
-    tensor epsilon = calculate_epsilon(*model, alpha, beta, observ, T, N);
-    update_transition(model, epsilon, gamma, T, N);
-    dumpHMM(stdout, model);
+    model->observation[k][i] = numerator / denominator;
+}
+
+int train(HMM *model, vector<observ> os) {
+    int N = model->state_num;
+    vector<matrix> gammas;
+    vector<tensor> epsilons;
+
+    for (int n = 0; n < os.size(); n++) {
+        int T = os[n].size();
+        matrix alpha = calculate_alpha(*model, os[n]);
+        matrix beta = calculate_beta(*model, os[n]);
+        matrix gamma = calculate_gamma(*model, alpha, beta, os[n]);
+        tensor epsilon = calculate_epsilon(*model, alpha, beta, os[n]);
+
+        gammas.push_back(gamma);
+        epsilons.push_back(epsilon);
+    }
+
+    // update initial prob.
+    for (int i = 0; i < N; i++) {
+        double pi = 0;
+        for (int n = 0; n < os.size(); n++) {
+            pi += gammas[n][1][i];
+        }
+        model->initial[i] = pi / N;
+    }
+
+    // update transition prob.
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            _update_transition(model, epsilons, gammas, os, i, j);
+        }
+    }
+
+    // update observation prob.
+    for (int i = 0; i < N; i++) {
+        for (int k = 0; k < model->observ_num; k++) {
+            _update_observation(model, gammas, os, i, k);
+        }
+    }
 
     return -1;
 }
 
 int main(int argc, char **argv) {
+    signal(SIGSEGV, handler);
+
     int iter = atoi(argv[1]);
     char *model_init_path = argv[2];
     char *seq_path = argv[3];
@@ -73,15 +107,13 @@ int main(int argc, char **argv) {
     }
 
     vector<observ> observs = seqs_to_observs(train_seqs, model.observ_num);
-    for (observ o : observs) {
-        dump_observ(o);
-    }
 
     for (int i = 0; i < iter; i++) {
-        int err = train(&model, train_seq, num_train_seq);
-        if (err != 0) {
-            printf("error at iter: %d\n", i);
-            return 0;
-        }
+        printf("iteration: %d\n", i);
+
+        int err = train(&model, observs);
+
+        printf("finish iteration: %d\n", i);
+        dumpHMM(stdout, &model);
     }
 }

@@ -1,3 +1,4 @@
+#include <execinfo.h>
 #include <hmm.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +20,19 @@ void panic(string message) {
     exit(1);
 }
 
+void handler(int sig) {
+    void *array[10];
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 10);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, 2);
+    exit(1);
+}
+
 void print_number(int n) { printf("%d\n", n); }
 
 observ seq_to_observ(string input, int observ_num) {
@@ -36,7 +50,7 @@ observ seq_to_observ(string input, int observ_num) {
 }
 
 vector<observ> seqs_to_observs(vector<string> seqs, int observ_num) {
-    vector<observ> ret(seqs.size());
+    vector<observ> ret;
 
     for (string s : seqs) {
         ret.push_back(seq_to_observ(s, observ_num));
@@ -87,6 +101,27 @@ void dump_tensor(tensor input) {
     }
 }
 
+void matrix_to_2darray(matrix m, double target[][MAX_STATE]) {
+    for (int i = 0; i < m.size(); i++) {
+        for (int j = 0; j < m[i].size(); j++) {
+            target[i][j] = m[i][j];
+        }
+    }
+}
+
+matrix add(matrix a, matrix b) {
+    int N = a.size();
+    int M = a[0].size();
+    matrix c = new_matrix(N, M);
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < M; j++) {
+            c[i][j] = a[i][j] + b[i][j];
+        }
+    }
+
+    return c;
+}
+
 matrix calculate_alpha(HMM model, observ o) {
     int T = o.size(), N = model.state_num;
     matrix alpha = new_matrix(T, N);
@@ -119,12 +154,12 @@ matrix calculate_beta(HMM model, observ o) {
     }
 
     for (int t = T - 2; t >= 0; t--) {
-        int ot1 = o[t - 1];
+        int ot1 = o[t + 1];
         for (int i = 0; i < N; i++) {
             double sum = 0;
             for (int j = 0; j < N; j++) {
                 double a = model.transition[i][j];
-                double b = model.observation[t + 1][j];
+                double b = model.observation[ot1][j];
                 sum += a * b * beta[t + 1][j];
             }
             beta[t][i] = sum;
