@@ -48,6 +48,7 @@ void _update_observation(HMM *model, vector<matrix> gs, vector<observ> os,
 
 int train(HMM *model, vector<observ> os) {
     int N = model->state_num;
+    int M = os.size();
     vector<matrix> gammas;
     vector<tensor> epsilons;
 
@@ -56,6 +57,8 @@ int train(HMM *model, vector<observ> os) {
         matrix alpha = calculate_alpha(*model, os[n]);
         matrix beta = calculate_beta(*model, os[n]);
         matrix gamma = calculate_gamma(*model, alpha, beta, os[n]);
+        // dump_matrix(gamma);
+        // cout << endl;
         tensor epsilon = calculate_epsilon(*model, alpha, beta, os[n]);
 
         gammas.push_back(gamma);
@@ -65,10 +68,10 @@ int train(HMM *model, vector<observ> os) {
     // update initial prob.
     for (int i = 0; i < N; i++) {
         double pi = 0;
-        for (int n = 0; n < os.size(); n++) {
+        for (int n = 0; n < M; n++) {
             pi += gammas[n][1][i];
         }
-        model->initial[i] = pi / N;
+        model->initial[i] = pi / M;
     }
 
     // update transition prob.
