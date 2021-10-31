@@ -84,10 +84,10 @@ void dump_3darray(double a[][MAX_STATE][MAX_STATE]) {
     }
 }
 
-void calculate_alpha(HMM model, observ o, double alpha[][MAX_STATE]) {
+void calculate_alpha(HMM *model, observ o, double alpha[][MAX_STATE]) {
     for (int i = 0; i < N; i++) {
         int o1 = o[0];
-        alpha[0][i] = model.initial[i] * model.observation[o1][i];
+        alpha[0][i] = model->initial[i] * model->observation[o1][i];
     }
 
     for (int t = 1; t < T; t++) {
@@ -95,14 +95,14 @@ void calculate_alpha(HMM model, observ o, double alpha[][MAX_STATE]) {
         for (int j = 0; j < N; j++) {
             double sum = 0;
             for (int i = 0; i < N; i++) {
-                sum += alpha[t - 1][i] * model.transition[i][j];
+                sum += alpha[t - 1][i] * model->transition[i][j];
             }
-            alpha[t][j] = sum * model.observation[ot][j];
+            alpha[t][j] = sum * model->observation[ot][j];
         }
     }
 }
 
-void calculate_beta(HMM model, observ o, double beta[][MAX_STATE]) {
+void calculate_beta(HMM *model, observ o, double beta[][MAX_STATE]) {
     for (int i = 0; i < N; i++) {
         beta[T - 1][i] = 1;
     }
@@ -112,8 +112,8 @@ void calculate_beta(HMM model, observ o, double beta[][MAX_STATE]) {
         for (int i = 0; i < N; i++) {
             double sum = 0;
             for (int j = 0; j < N; j++) {
-                double a = model.transition[i][j];
-                double b = model.observation[ot1][j];
+                double a = model->transition[i][j];
+                double b = model->observation[ot1][j];
                 sum += a * b * beta[t + 1][j];
             }
             beta[t][i] = sum;
@@ -121,7 +121,7 @@ void calculate_beta(HMM model, observ o, double beta[][MAX_STATE]) {
     }
 }
 
-void calculate_gamma(HMM model, observ o, double alpha[][MAX_STATE],
+void calculate_gamma(HMM *model, observ o, double alpha[][MAX_STATE],
                      double beta[][MAX_STATE], double gamma[][MAX_STATE]) {
     for (int t = 0; t < T; t++) {
         for (int i = 0; i < N; i++) {
@@ -139,37 +139,23 @@ void calculate_gamma(HMM model, observ o, double alpha[][MAX_STATE],
     }
 }
 
-double _epsilon(HMM model, double alpha[][MAX_STATE], double beta[][MAX_STATE],
-                int ot1, int N, int t, int i_in, int j_in) {
-    double denominator = 0;
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            denominator += alpha[t][i] * model.transition[i][j] *
-                           model.observation[ot1][j] * beta[t + 1][j];
-        }
-    }
-
-    if (denominator == 0) {
-        char message[MAX_PANIC_MESSAGE];
-        sprintf(message, "epsilon divide by zero t:%d i:%d j:%d", t, i_in,
-                j_in);
-        panic(message);
-    }
-
-    double numerator = alpha[t][i_in] * model.transition[i_in][j_in] *
-                       model.observation[ot1][j_in] * beta[t + 1][j_in];
-
-    return numerator / denominator;
-}
-
-void calculate_epsilon(HMM model, observ o, double alpha[][MAX_STATE],
+void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
                        double beta[][MAX_STATE],
                        double epsilon[][MAX_STATE][MAX_STATE]) {
     for (int t = 0; t < T - 1; t++) {
+        double denominator = 0;
+        int ot1 = o[t + 1];
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                epsilon[t][i][j] =
-                    _epsilon(model, alpha, beta, o[t + 1], N, t, i, j);
+                denominator += alpha[t][i] * model->transition[i][j] *
+                               model->observation[ot1][j] * beta[t + 1][j];
+            }
+        }
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                double numerator = alpha[t][i] * model->transition[i][j] *
+                                   model->observation[ot1][j] * beta[t + 1][j];
+                epsilon[t][i][j] = numerator / denominator;
             }
         }
     }
@@ -177,11 +163,11 @@ void calculate_epsilon(HMM model, observ o, double alpha[][MAX_STATE],
 
 bool close_to_one(double input) { return input > 0.9 && input < 1.1; }
 
-bool validate_hmm(HMM model) {
+bool validate_hmm(HMM *model) {
     // initial prob. sums to 1
     double sum = 0;
     for (int i = 0; i < N; i++) {
-        sum += model.initial[i];
+        sum += model->initial[i];
     }
     if (!close_to_one(sum)) {
         printf("initial prob. sums to %lf\n", sum);
@@ -192,7 +178,7 @@ bool validate_hmm(HMM model) {
     for (int i = 0; i < N; i++) {
         double sum = 0;
         for (int j = 0; j < N; j++) {
-            sum += model.transition[i][j];
+            sum += model->transition[i][j];
         }
         if (!close_to_one(sum)) {
             printf("row %d of transition sums to %lf\n", i, sum);
@@ -204,7 +190,7 @@ bool validate_hmm(HMM model) {
     for (int i = 0; i < N; i++) {
         double sum = 0;
         for (int j = 0; j < N; j++) {
-            sum += model.observation[j][i];
+            sum += model->observation[j][i];
         }
         if (!close_to_one(sum)) {
             printf("column %d of observation sums to %lf\n", i, sum);

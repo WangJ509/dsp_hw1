@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,7 @@
 
 #include "utils.cpp"
 using namespace std;
+using namespace std::chrono;
 
 #ifndef MAX_TRAIN_SEQ
 #define MAX_TRAIN_SEQ 10000
@@ -57,12 +59,11 @@ void _update_observation(HMM *model, double gammas[][MAX_STATE][MAX_STATE],
 
 int train(HMM *model, vector<observ> os) {
     for (int n = 0; n < M; n++) {
-        calculate_alpha(*model, os[n], alphas[n]);
-        calculate_beta(*model, os[n], betas[n]);
-        calculate_gamma(*model, os[n], alphas[n], betas[n], gammas[n]);
-        calculate_epsilon(*model, os[n], alphas[n], betas[n], epsilons[n]);
+        calculate_alpha(model, os[n], alphas[n]);
+        calculate_beta(model, os[n], betas[n]);
+        calculate_gamma(model, os[n], alphas[n], betas[n], gammas[n]);
+        calculate_epsilon(model, os[n], alphas[n], betas[n], epsilons[n]);
     }
-
     // update initial prob.
     for (int i = 0; i < N; i++) {
         double pi = 0;
@@ -79,14 +80,16 @@ int train(HMM *model, vector<observ> os) {
         }
     }
 
+    auto start = high_resolution_clock::now();
     // update observation prob.
     for (int i = 0; i < N; i++) {
         for (int k = 0; k < model->observ_num; k++) {
             _update_observation(model, gammas, os, i, k);
         }
     }
+    auto end = high_resolution_clock::now();cout << duration_cast<microseconds>(end - start).count() << endl;
 
-    return -1;
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -122,7 +125,7 @@ int main(int argc, char **argv) {
 
         printf("finish iteration: %d\n", i);
         dumpHMM(stdout, &model);
-        if (!validate_hmm(model)) {
+        if (!validate_hmm(&model)) {
             panic("model is invalid");
         }
     }
