@@ -16,30 +16,39 @@ using namespace std;
 #define MAX_TRAIN_SEQ 10000
 #endif
 
-void _update_transition(HMM *model, vector<tensor> es, vector<matrix> gs,
+// assume these variables are fixed
+int T, N, M;
+double alphas[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
+double betas[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
+double gammas[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
+double epsilons[MAX_TRAIN_SEQ][MAX_SEQ][MAX_STATE][MAX_STATE];
+
+void _update_transition(HMM *model,
+                        double epsilons[][MAX_SEQ][MAX_STATE][MAX_STATE],
+                        double gammas[][MAX_STATE][MAX_STATE],
                         vector<observ> os, int i, int j) {
     double numerator = 0;
     double denominator = 0;
     for (int n = 0; n < os.size(); n++) {
         for (int t = 0; t < os[n].size() - 1; t++) {
-            numerator += es[n][t][i][j];
-            denominator += gs[n][t][i];
+            numerator += epsilons[n][t][i][j];
+            denominator += gammas[n][t][i];
         }
     }
 
     model->transition[i][j] = numerator / denominator;
 }
 
-void _update_observation(HMM *model, vector<matrix> gs, vector<observ> os,
-                         int i, int k) {
+void _update_observation(HMM *model, double gammas[][MAX_STATE][MAX_STATE],
+                         vector<observ> os, int i, int k) {
     double numerator = 0;
     double denominator = 0;
     for (int n = 0; n < os.size(); n++) {
         for (int t = 0; t < os[n].size(); t++) {
             if (os[n][t] == k) {
-                numerator += gs[n][t][i];
+                numerator += gammas[n][t][i];
             }
-            denominator += gs[n][t][i];
+            denominator += gammas[n][t][i];
         }
     }
 
@@ -47,22 +56,11 @@ void _update_observation(HMM *model, vector<matrix> gs, vector<observ> os,
 }
 
 int train(HMM *model, vector<observ> os) {
-    int N = model->state_num;
-    int M = os.size();
-    vector<matrix> gammas;
-    vector<tensor> epsilons;
-
-    for (int n = 0; n < os.size(); n++) {
-        int T = os[n].size();
-        matrix alpha = calculate_alpha(*model, os[n]);
-        matrix beta = calculate_beta(*model, os[n]);
-        matrix gamma = calculate_gamma(*model, alpha, beta, os[n]);
-        // dump_matrix(gamma);
-        // cout << endl;
-        tensor epsilon = calculate_epsilon(*model, alpha, beta, os[n]);
-
-        gammas.push_back(gamma);
-        epsilons.push_back(epsilon);
+    for (int n = 0; n < M; n++) {
+        calculate_alpha(*model, os[n], alphas[n]);
+        calculate_beta(*model, os[n], betas[n]);
+        calculate_gamma(*model, os[n], alphas[n], betas[n], gammas[n]);
+        calculate_epsilon(*model, os[n], alphas[n], betas[n], epsilons[n]);
     }
 
     // update initial prob.
@@ -98,6 +96,7 @@ int main(int argc, char **argv) {
     char *model_init_path = argv[2];
     char *seq_path = argv[3];
     char *output_model_path = argv[4];
+    FILE *fp_out = open_or_die(output_model_path, "w");
 
     HMM model;
     loadHMM(&model, model_init_path);
@@ -111,6 +110,11 @@ int main(int argc, char **argv) {
 
     vector<observ> observs = seqs_to_observs(train_seqs, model.observ_num);
 
+    // set global variables
+    T = observs[0].size();
+    N = model.state_num;
+    M = observs.size();
+
     for (int i = 0; i < iter; i++) {
         printf("iteration: %d\n", i);
 
@@ -118,5 +122,10 @@ int main(int argc, char **argv) {
 
         printf("finish iteration: %d\n", i);
         dumpHMM(stdout, &model);
+        if (!validate_hmm(model)) {
+            panic("model is invalid");
+        }
     }
+
+    dumpHMM(fp_out, &model);
 }

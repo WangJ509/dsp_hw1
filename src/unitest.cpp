@@ -8,8 +8,16 @@
 #include "utils.cpp"
 using namespace std;
 
+#define MAX_TRAIN_SEQ 10000
+
 observ o = {0, 1, 2, 3, 4, 5};
 HMM model;
+int T = 10;
+int N = 10;
+double alpha[MAX_TRAIN_SEQ][MAX_STATE];
+double beta[MAX_TRAIN_SEQ][MAX_STATE];
+double gamma[MAX_TRAIN_SEQ][MAX_STATE];
+double epsilon[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
 
 void test_matrix(int T, int N) {
     matrix m = new_matrix(T, N);
@@ -17,28 +25,27 @@ void test_matrix(int T, int N) {
 }
 
 void test_alpha() {
-    int observ[] = {0, 1, 2, 3, 4, 5};
-    matrix m = calculate_alpha(model, o);
-    dump_matrix(m);
+    puts("test alpha");
+    calculate_alpha(model, o, alpha);
+    dump_2darray(alpha);
 }
 
 void test_beta() {
-    matrix m = calculate_beta(model, o);
-    dump_matrix(m);
+    puts("test beta");
+    calculate_beta(model, o, beta);
+    dump_2darray(beta);
 }
 
 void test_gamma() {
-    matrix alpha = calculate_alpha(model, o);
-    matrix beta = calculate_beta(model, o);
-    matrix gamma = calculate_gamma(model, alpha, beta, o);
-    dump_matrix(gamma);
+    puts("test gamma");
+    calculate_gamma(model, o, alpha, beta, gamma);
+    dump_2darray(gamma);
 }
 
 void test_epsilon() {
-    matrix alpha = calculate_alpha(model, o);
-    matrix beta = calculate_beta(model, o);
-    tensor t = calculate_epsilon(model, alpha, beta, o);
-    dump_tensor(t);
+    puts("test epsilon");
+    calculate_epsilon(model, o, alpha, beta, epsilon);
+    // dump_3darray(epsilon);
 }
 
 void test_observ() {
@@ -58,23 +65,30 @@ void test_observ() {
     }
 }
 
-int main(int argc, char const *argv[]) {
+void test_load_train_seq() {
     loadHMM(&model, "model_init.txt");
     ifstream fin("data/train_seq_01.txt");
     string line;
     vector<string> seqs;
-    getline(fin, line);
-    seqs.push_back(line);
-    getline(fin, line);
-    seqs.push_back(line);
+    while (getline(fin, line)) {
+        seqs.push_back(line);
+        T = line.length();
+    }
+    N = model.state_num;
     vector<observ> os = seqs_to_observs(seqs, model.observ_num);
     o = os[0];
+}
 
+int main(int argc, char const *argv[]) {
+    signal(SIGSEGV, handler);
+
+    test_load_train_seq();
     // test_matrix(6, 6);
-    // test_alpha();
+    test_alpha();
     test_beta();
-    // test_gamma();
-    // test_epsilon();
+    test_gamma();
+    test_epsilon();
     // test_observ();
+
     return 0;
 }
