@@ -84,7 +84,7 @@ void dump_3darray(double a[][MAX_STATE][MAX_STATE]) {
     }
 }
 
-void calculate_alpha(HMM *model, observ o, double alpha[][MAX_STATE]) {
+double calculate_alpha(HMM *model, observ o, double alpha[][MAX_STATE]) {
     for (int i = 0; i < N; i++) {
         int o1 = o[0];
         alpha[0][i] = model->initial[i] * model->observation[o1][i];
@@ -100,6 +100,13 @@ void calculate_alpha(HMM *model, observ o, double alpha[][MAX_STATE]) {
             alpha[t][j] = sum * model->observation[ot][j];
         }
     }
+
+    double likely = 0;
+    for (int i = 0; i < N; i++) {
+        likely += alpha[T-1][i];
+    }
+
+    return likely;
 }
 
 void calculate_beta(HMM *model, observ o, double beta[][MAX_STATE]) {
@@ -122,26 +129,24 @@ void calculate_beta(HMM *model, observ o, double beta[][MAX_STATE]) {
 }
 
 void calculate_gamma(HMM *model, observ o, double alpha[][MAX_STATE],
-                     double beta[][MAX_STATE], double gamma[][MAX_STATE]) {
+                     double beta[][MAX_STATE], double gamma_sum[][MAX_STATE],
+                     double gamma_obs[][MAX_STATE]) {
     for (int t = 0; t < T; t++) {
+        double denominator = 0;
         for (int i = 0; i < N; i++) {
-            double denominator = 0;
-            for (int j = 0; j < N; j++) {
-                denominator += alpha[t][j] * beta[t][j];
-            }
-            if (denominator == 0) {
-                char message[MAX_PANIC_MESSAGE];
-                sprintf(message, "gamma divide by zero t:%d i:%d", t, i);
-                panic(message);
-            }
-            gamma[t][i] = (alpha[t][i] * beta[t][i]) / denominator;
+            denominator += alpha[t][i] * beta[t][i];
+        }
+        for (int i = 0; i < N; i++) {
+            double tmp = (alpha[t][i] * beta[t][i]) / denominator;
+            gamma_sum[t][i] += tmp;
+            gamma_obs[o[t]][i] += tmp;
         }
     }
 }
 
 void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
                        double beta[][MAX_STATE],
-                       double epsilon[][MAX_STATE][MAX_STATE]) {
+                       double epsilon_sum[][MAX_STATE][MAX_STATE]) {
     for (int t = 0; t < T - 1; t++) {
         double denominator = 0;
         int ot1 = o[t + 1];
@@ -155,7 +160,7 @@ void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
             for (int j = 0; j < N; j++) {
                 double numerator = alpha[t][i] * model->transition[i][j] *
                                    model->observation[ot1][j] * beta[t + 1][j];
-                epsilon[t][i][j] = numerator / denominator;
+                epsilon_sum[t][i][j] += numerator / denominator;
             }
         }
     }

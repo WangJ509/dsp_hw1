@@ -19,32 +19,27 @@ double beta[MAX_TRAIN_SEQ][MAX_STATE];
 double gamma[MAX_TRAIN_SEQ][MAX_STATE];
 double epsilon[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
 
-void test_matrix(int T, int N) {
-    matrix m = new_matrix(T, N);
-    dump_matrix(m);
-}
-
 void test_alpha() {
     puts("test alpha");
-    calculate_alpha(model, o, alpha);
+    calculate_alpha(&model, o, alpha);
     dump_2darray(alpha);
 }
 
 void test_beta() {
     puts("test beta");
-    calculate_beta(model, o, beta);
+    calculate_beta(&model, o, beta);
     dump_2darray(beta);
 }
 
 void test_gamma() {
     puts("test gamma");
-    calculate_gamma(model, o, alpha, beta, gamma);
+    calculate_gamma(&model, o, alpha, beta, gamma);
     dump_2darray(gamma);
 }
 
 void test_epsilon() {
     puts("test epsilon");
-    calculate_epsilon(model, o, alpha, beta, epsilon);
+    calculate_epsilon(&model, o, alpha, beta, epsilon);
     // dump_3darray(epsilon);
 }
 

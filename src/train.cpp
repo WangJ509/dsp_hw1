@@ -20,15 +20,16 @@ using namespace std::chrono;
 
 // assume these variables are fixed
 int T, N, M;
-double alphas[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
-double betas[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
-double gammas[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
-double epsilons[MAX_TRAIN_SEQ][MAX_SEQ][MAX_STATE][MAX_STATE];
+double alpha[MAX_SEQ][MAX_STATE];
+double beta[MAX_SEQ][MAX_STATE];
+double gamma_sum[MAX_SEQ][MAX_STATE];
+double gamma_obs[MAX_OBSERV][MAX_STATE];
+double epsilon_sum[MAX_SEQ][MAX_STATE][MAX_STATE];
 
 void _update_transition(HMM *model,
                         double epsilons[][MAX_SEQ][MAX_STATE][MAX_STATE],
-                        double gammas[][MAX_STATE][MAX_STATE],
-                        vector<observ> os, int i, int j) {
+                        double gammas[][MAX_SEQ][MAX_STATE], vector<observ> os,
+                        int i, int j) {
     double numerator = 0;
     double denominator = 0;
     for (int n = 0; n < os.size(); n++) {
@@ -41,7 +42,7 @@ void _update_transition(HMM *model,
     model->transition[i][j] = numerator / denominator;
 }
 
-void _update_observation(HMM *model, double gammas[][MAX_STATE][MAX_STATE],
+void _update_observation(HMM *model, double gammas[][MAX_SEQ][MAX_STATE],
                          vector<observ> os, int i, int k) {
     double numerator = 0;
     double denominator = 0;
@@ -58,36 +59,46 @@ void _update_observation(HMM *model, double gammas[][MAX_STATE][MAX_STATE],
 }
 
 int train(HMM *model, vector<observ> os) {
+    memset(gamma_sum, 0, sizeof(double) * MAX_SEQ * MAX_STATE);
+    memset(gamma_obs, 0, sizeof(double) * MAX_OBSERV * MAX_STATE);
+    memset(epsilon_sum, 0, sizeof(double) * MAX_SEQ * MAX_STATE * MAX_STATE);
+
     for (int n = 0; n < M; n++) {
-        calculate_alpha(model, os[n], alphas[n]);
-        calculate_beta(model, os[n], betas[n]);
-        calculate_gamma(model, os[n], alphas[n], betas[n], gammas[n]);
-        calculate_epsilon(model, os[n], alphas[n], betas[n], epsilons[n]);
+        calculate_alpha(model, os[n], alpha);
+        calculate_beta(model, os[n], beta);
+        calculate_gamma(model, os[n], alpha, beta, gamma_sum, gamma_obs);
+        calculate_epsilon(model, os[n], alpha, beta, epsilon_sum);
     }
     // update initial prob.
     for (int i = 0; i < N; i++) {
-        double pi = 0;
-        for (int n = 0; n < M; n++) {
-            pi += gammas[n][1][i];
-        }
-        model->initial[i] = pi / M;
+        model->initial[i] = gamma_sum[0][i] / M;
     }
 
     // update transition prob.
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            _update_transition(model, epsilons, gammas, os, i, j);
+            double e = 0, g = 0;
+            for (int t = 0; t < T-1; t++) {
+                e += epsilon_sum[t][i][j];
+                g += gamma_sum[t][i];
+            }
+            model->transition[i][j] = e / g;
         }
     }
 
-    auto start = high_resolution_clock::now();
     // update observation prob.
     for (int i = 0; i < N; i++) {
         for (int k = 0; k < model->observ_num; k++) {
-            _update_observation(model, gammas, os, i, k);
+            double tmp = 0;
+            for (int t = 0; t < T; t++) {
+                tmp += gamma_sum[t][i];
+            }
+            model->observation[k][i] = gamma_obs[k][i] / tmp;
         }
     }
-    auto end = high_resolution_clock::now();cout << duration_cast<microseconds>(end - start).count() << endl;
+    auto start = high_resolution_clock::now();
+    auto end = high_resolution_clock::now();
+    cout << duration_cast<microseconds>(end - start).count() << endl;
 
     return 0;
 }
