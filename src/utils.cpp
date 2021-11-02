@@ -103,7 +103,7 @@ double calculate_alpha(HMM *model, observ o, double alpha[][MAX_STATE]) {
 
     double likely = 0;
     for (int i = 0; i < N; i++) {
-        likely += alpha[T-1][i];
+        likely += alpha[T - 1][i];
     }
 
     return likely;
@@ -166,9 +166,31 @@ void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
     }
 }
 
-void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
-                       double beta[][MAX_STATE],
-                       double epsilon_sum[][MAX_STATE][MAX_STATE]) {
+double calculate_delta(HMM model, observ o, double delta[][MAX_STATE]) {
+    for (int i = 0; i < N; i++) {
+        delta[0][i] = model.initial[i] * model.observation[o[0]][i];
+    }
+    for (int t = 1; t < T; t++) {
+        for (int j = 0; j < N; j++) {
+            double max = -1;
+            for (int i = 0; i < N; i++) {
+                double tmp = delta[t - 1][i] * model.transition[i][j];
+                if (tmp > max) {
+                    max = tmp;
+                }
+            }
+            delta[t][j] = max * model.observation[o[t]][j];
+        }
+    }
+
+    double p_max = -1;
+    for (int i = 0; i < N; i++) {
+        if (delta[T-1][i] > p_max) {
+            p_max = delta[T-1][i];
+        }
+    }
+    
+    return p_max;
 }
 
 bool close_to_one(double input) { return input > 0.9 && input < 1.1; }
