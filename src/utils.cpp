@@ -166,6 +166,11 @@ void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
     }
 }
 
+void calculate_epsilon(HMM *model, observ o, double alpha[][MAX_STATE],
+                       double beta[][MAX_STATE],
+                       double epsilon_sum[][MAX_STATE][MAX_STATE]) {
+}
+
 bool close_to_one(double input) { return input > 0.9 && input < 1.1; }
 
 bool validate_hmm(HMM *model) {
