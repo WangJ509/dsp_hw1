@@ -22,6 +22,20 @@ double alpha[MAX_SEQ][MAX_STATE];
 double delta[MAX_SEQ][MAX_STATE];
 int T, N;
 
+void test_forward(observ o) {
+    double max_likely = -1;
+    int best_idx = 0;
+    for (int i = 0; i < models.size(); i++) {
+        double likely = calculate_alpha(&models[i], o, alpha);
+        if (likely > max_likely) {
+            max_likely = likely;
+            best_idx = i;
+        }
+    }
+
+    result << model_names[best_idx] << " " << max_likely << endl;
+}
+
 void test(observ o) {
     double max_prob = -1;
     int best_idx = 0;
@@ -54,7 +68,7 @@ int main(int argc, char **argv) {
         models.push_back(model);
         model_names.push_back(line);
         num_model += 1;
-        cout << "load success: " << line << endl;
+        // cout << "load success: " << line << endl;
     }
     model_list.close();
 
@@ -72,6 +86,9 @@ int main(int argc, char **argv) {
     N = models[0].state_num;
 
     for (observ o : observs) {
-        test(o);
+        if (getenv("USE_FORWARD") != NULL)
+            test_forward(o);
+        else
+            test(o);
     }
 }

@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -78,7 +79,7 @@ int train(HMM *model, vector<observ> os) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             double e = 0, g = 0;
-            for (int t = 0; t < T-1; t++) {
+            for (int t = 0; t < T - 1; t++) {
                 e += epsilon_sum[t][i][j];
                 g += gamma_sum[t][i];
             }
@@ -96,15 +97,13 @@ int train(HMM *model, vector<observ> os) {
             model->observation[k][i] = gamma_obs[k][i] / tmp;
         }
     }
-    auto start = high_resolution_clock::now();
-    auto end = high_resolution_clock::now();
-    cout << duration_cast<microseconds>(end - start).count() << endl;
 
     return 0;
 }
 
 int main(int argc, char **argv) {
     signal(SIGSEGV, handler);
+    bool debug_mode = (getenv("DEBUG") != NULL);
 
     int iter = atoi(argv[1]);
     char *model_init_path = argv[2];
@@ -130,12 +129,15 @@ int main(int argc, char **argv) {
     M = observs.size();
 
     for (int i = 0; i < iter; i++) {
-        printf("iteration: %d\n", i);
+        if (debug_mode) printf("iteration: %d\n", i);
 
         int err = train(&model, observs);
 
-        printf("finish iteration: %d\n", i);
-        dumpHMM(stdout, &model);
+        if (debug_mode) {
+            printf("finish iteration: %d\n", i);
+            dumpHMM(stdout, &model);
+        }
+        
         if (!validate_hmm(&model)) {
             panic("model is invalid");
         }

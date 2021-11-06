@@ -14,10 +14,11 @@ observ o = {0, 1, 2, 3, 4, 5};
 HMM model;
 int T = 10;
 int N = 10;
-double alpha[MAX_TRAIN_SEQ][MAX_STATE];
-double beta[MAX_TRAIN_SEQ][MAX_STATE];
-double gamma[MAX_TRAIN_SEQ][MAX_STATE];
-double epsilon[MAX_TRAIN_SEQ][MAX_STATE][MAX_STATE];
+double alpha[MAX_SEQ][MAX_STATE];
+double beta[MAX_SEQ][MAX_STATE];
+double gamma_sum[MAX_SEQ][MAX_STATE];
+double gamma_obs[MAX_OBSERV][MAX_STATE];
+double epsilon_sum[MAX_SEQ][MAX_STATE][MAX_STATE];
 
 void test_alpha() {
     puts("test alpha");
@@ -33,14 +34,12 @@ void test_beta() {
 
 void test_gamma() {
     puts("test gamma");
-    calculate_gamma(&model, o, alpha, beta, gamma);
-    dump_2darray(gamma);
+    calculate_gamma(&model, o, alpha, beta, gamma_sum, gamma_obs);
 }
 
 void test_epsilon() {
     puts("test epsilon");
-    calculate_epsilon(&model, o, alpha, beta, epsilon);
-    // dump_3darray(epsilon);
+    calculate_epsilon(&model, o, alpha, beta, epsilon_sum);
 }
 
 void test_observ() {
@@ -74,16 +73,30 @@ void test_load_train_seq() {
     o = os[0];
 }
 
+void test_delta() {
+    ifstream fin("data/test_seq.txt");
+    string line;
+    getline(fin, line);
+    getline(fin, line);
+    getline(fin, line);
+    loadHMM(&model, "model_01.txt");
+    observ o = seq_to_observ(line, model.observ_num);
+
+    double delta[MAX_SEQ][MAX_STATE];
+    cout << calculate_delta(model, o, delta) << endl;
+    cout << calculate_alpha(&model, o, alpha) << endl;
+}
+
 int main(int argc, char const *argv[]) {
     signal(SIGSEGV, handler);
 
     test_load_train_seq();
     // test_matrix(6, 6);
-    test_alpha();
-    test_beta();
-    test_gamma();
-    test_epsilon();
+    // test_alpha();
+    // test_beta();
+    // test_gamma();
+    // test_epsilon();
     // test_observ();
-
+    test_delta();
     return 0;
 }
