@@ -86,9 +86,9 @@ int main(int argc, char **argv) {
     N = models[0].state_num;
 
     for (observ o : observs) {
-        if (getenv("USE_FORWARD") != NULL)
-            test_forward(o);
-        else
+        if (getenv("USE_VITERBI") != NULL)
             test(o);
+        else
+            test_forward(o);
     }
 }
